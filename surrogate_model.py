@@ -7,9 +7,20 @@ import joblib
 import os
 from data_pipeline import load_and_preprocess_data
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+
+def _resolve_path(path):
+    if path is None:
+        return None
+    if os.path.isabs(path):
+        return path
+    return os.path.join(BASE_DIR, path)
+
+
 class SurrogateModel:
     def __init__(self, model_path='surrogate_model.joblib'):
-        self.model_path = model_path
+        self.model_path = _resolve_path(model_path)
         self.model = RandomForestRegressor(n_estimators=300, random_state=42)
         self.features = []
         self.targets = []
@@ -76,6 +87,10 @@ class SurrogateModel:
     def train(self, df, features, targets):
         self.features = features
         self.targets = targets
+
+        model_dir = os.path.dirname(self.model_path)
+        if model_dir:
+            os.makedirs(model_dir, exist_ok=True)
         
         # We need more than 1 row to train a model. Augment if necessary.
         if len(df) < 50:
@@ -177,10 +192,8 @@ class SurrogateModel:
             return self.get_feature_importance() # Fallback to global importance if SHAP fails
 
 if __name__ == "__main__":
-    import os
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    prod_path = os.path.join(base_dir, '_h_batch_production_data.xlsx')
-    proc_path = os.path.join(base_dir, '_h_batch_process_data.xlsx')
+    prod_path = os.path.join(BASE_DIR, '_h_batch_production_data.xlsx')
+    proc_path = os.path.join(BASE_DIR, '_h_batch_process_data.xlsx')
     
     # Load raw data
     data_dict = load_and_preprocess_data(prod_path, proc_path)

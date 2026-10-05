@@ -1,7 +1,34 @@
+import os
 import streamlit as st
 import pandas as pd
 import numpy as np
+from data_pipeline import load_and_preprocess_data
 from optimization_engine import OptimizationEngine
+from surrogate_model import SurrogateModel
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_PATH = os.path.join(BASE_DIR, "surrogate_model.joblib")
+
+
+def ensure_surrogate_model(model_path=MODEL_PATH):
+    if os.path.exists(model_path):
+        return True
+
+    try:
+        data_pipeline = load_and_preprocess_data(
+            os.path.join(BASE_DIR, "_h_batch_production_data.xlsx"),
+            os.path.join(BASE_DIR, "_h_batch_process_data.xlsx"),
+        )
+        if data_pipeline is None:
+            return False
+
+        surrogate = SurrogateModel(model_path)
+        surrogate.train(data_pipeline['data'], data_pipeline['features'], data_pipeline['targets'])
+        return os.path.exists(model_path)
+    except Exception as exc:
+        st.error(f"Unable to build the surrogate model automatically: {exc}")
+        return False
+
 
 # Configuration
 st.set_page_config(page_title="AVEVA Golden Signature Engine", layout="wide", initial_sidebar_state="collapsed")
@@ -209,7 +236,10 @@ div[data-testid="stVerticalBlockBorderWrapper"]:hover {
 @st.cache_resource
 def load_engine(cache_buster=1):
     try:
-        return OptimizationEngine()
+        if not ensure_surrogate_model(MODEL_PATH):
+            st.warning("The surrogate model could not be created automatically. Verify the source Excel files are available.")
+            return None
+        return OptimizationEngine(MODEL_PATH)
     except Exception as e:
         st.error(f"Error loading optimization engine: {e}")
         return None
@@ -217,7 +247,6 @@ def load_engine(cache_buster=1):
 engine = load_engine(cache_buster=3)
 
 if not engine:
-    st.warning("Please ensure the Surrogate Model is trained.")
     st.stop()
 
 # --- Initialize Session State ---
