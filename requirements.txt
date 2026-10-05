@@ -1,0 +1,13 @@
+pandas
+numpy
+scikit-learn
+scipy
+optuna
+streamlit
+xgboost
+matplotlib
+seaborn
+openpyxl
+plotly
+fpdf2
+shap
